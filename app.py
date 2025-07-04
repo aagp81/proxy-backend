@@ -1,23 +1,26 @@
 from flask import Flask, request, jsonify
 import requests
 from flask_cors import CORS
-import os
 
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Habilita CORS para todas las rutas
 
-API_URL = "http://47.99.135.189:8080/wx/auth/login"
+TARGET_API = "http://47.99.135.189:8080/wx"
 
-@app.route("/auth/login", methods=["POST"])
-def proxy_login():
-    data = request.get_json()
+@app.route('/api/<path:path>', methods=['GET', 'POST'])
+def proxy(path):
+    url = f"{TARGET_API}/{path}"
+    method = request.method
+
     try:
-        response = requests.post(API_URL, json=data)
-        return jsonify(response.json()), response.status_code
+        if method == 'POST':
+            response = requests.post(url, json=request.get_json(), headers={'Content-Type': 'application/json'})
+        else:
+            response = requests.get(url, params=request.args)
+
+        return (response.text, response.status_code, {'Content-Type': response.headers.get('Content-Type', 'application/json')})
     except Exception as e:
-        return jsonify({"error": "No se pudo contactar con la API", "details": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
